@@ -388,7 +388,7 @@ bool DataBase::updateDataBase(const string& filename,
             {
                 /* next*Id(steps)返回当前question/answer num，同时将当前num加上steps */
                 int questionId = nextQuestionId(1);
-                int answerId = nextQuestionId(answerObjList.size());
+                int answerId = nextAnswerId(answerObjList.size());
 
                 vector<string> words;
                 jieba->CutForSearch(questionObj.question(), words, true);
