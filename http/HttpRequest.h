@@ -37,14 +37,19 @@ public:
         NUMS_TYPE
     };
 
-    explicit HttpRequest();
+    HttpRequest();
     ~HttpRequest();
 
     void parseHeader(const std::string& header);
     ArgumentMap getArguments() const;
 
-    double version() const;
+    std::string method() const;
+    std::string source() const;
+    std::string host() const;
     std::string contentType() const;
+    std::string userAgent() const;
+    double version() const;
+    uint64_t contentLength() const;
     
     bool isValid() const;
     bool isKeepAlive() const;

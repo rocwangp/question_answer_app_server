@@ -370,84 +370,84 @@ int getTableLineNum(const string& table)
 
 int main()
 {
-    updateDataBase();
-    /* MYSQL conn; */
-    /* ::mysql_init(&conn); */
-    /* ::mysql_real_connect(&conn, "localhost", "root", "3764819", "app", 3306, NULL, 0); */
+    /* updateDataBase(); */
+    MYSQL conn;
+    ::mysql_init(&conn);
+    ::mysql_real_connect(&conn, "localhost", "root", "3764819", "app", 3306, NULL, 0);
     
-    /* ::mysql_set_character_set(&conn, "utf8"); */
+    ::mysql_set_character_set(&conn, "utf8");
 
-    /* string sql = "select * from word where word='balabalabala'"; */
-    /* cout << sql << endl; */
-    /* ::mysql_query(&conn, sql.c_str()); */
-    /* MYSQL_RES *result = ::mysql_store_result(&conn); */
-    /* if(result) */
-    /* { */
-    /*     cout << "result is not nullptr" << endl; */
-    /*     MYSQL_ROW row = ::mysql_fetch_row(result); */
-    /*     if(row) */
-    /*     { */
-    /*         cout << "row is not nullptr" << endl; */
-    /*     } */
-    /*     else */
-    /*     { */
-    /*         cout << "row is nullptr" << endl; */
-    /*     } */
-    /* } */
-    /* else */
-    /* { */
-    /*     cout << "result is nullptr" << endl; */
-    /* } */
+    string sql = "select * from question where question='who are you'";
+    cout << sql << endl;
+    ::mysql_query(&conn, sql.c_str());
+    MYSQL_RES *result = ::mysql_store_result(&conn);
+    if(result)
+    {
+        cout << "result is not nullptr" << endl;
+        MYSQL_ROW row = ::mysql_fetch_row(result);
+        if(row)
+        {
+            cout << "row is not nullptr" << endl;
+        }
+        else
+        {
+            cout << "row is nullptr" << endl;
+        }
+    }
+    else
+    {
+        cout << "result is nullptr" << endl;
+    }
 
-    /* ::mysql_free_result(result); */
-    /* sql = "select * from word where word='能'"; */
-    /* cout << sql << endl; */
-    /* ::mysql_query(&conn, sql.c_str()); */
-    /* result = ::mysql_store_result(&conn); */
-    /* if(result) */
-    /* { */
-    /*     cout << "result is not nullptr" << endl; */
-    /*     MYSQL_ROW row = mysql_fetch_row(result); */
-    /*     if(row) */
-    /*     { */
-    /*         cout << "row is not nullptr" << endl; */
-    /*     } */
-    /*     else */
-    /*     { */
-    /*         cout << "row is nullptr" << endl; */
-    /*     } */
-    /* } */
-    /* else */
-    /* { */
-    /*     cout << "result is nullptr" << endl; */
-    /* } */
-    /* ::mysql_free_result(result); */
+    ::mysql_free_result(result);
+    sql = "select * from question where question='who are you aa'";
+    cout << sql << endl;
+    ::mysql_query(&conn, sql.c_str());
+    result = ::mysql_store_result(&conn);
+    if(result)
+    {
+        cout << "result is not nullptr" << endl;
+        MYSQL_ROW row = mysql_fetch_row(result);
+        if(row)
+        {
+            cout << "row is not nullptr" << endl;
+        }
+        else
+        {
+            cout << "row is nullptr" << endl;
+        }
+    }
+    else
+    {
+        cout << "result is nullptr" << endl;
+    }
+    ::mysql_free_result(result);
 
-    /* sql = "selectt * from word where word='能'"; */
-    /* cout << sql << endl; */
-    /* ::mysql_query(&conn, sql.c_str()); */
-    /* result = ::mysql_store_result(&conn); */
-    /* if(result) */
-    /* { */
-    /*     cout << "result is not nullptr" << endl; */
-    /*     MYSQL_ROW row = mysql_fetch_row(result); */
-    /*     if(row) */
-    /*     { */
-    /*         cout << "row is not nullptr" << endl; */
-    /*     } */
-    /*     else */
-    /*     { */
-    /*         cout << "row is nullptr" << endl; */
-    /*     } */
-    /* } */
-    /* else */
-    /* { */
-    /*     cout << "result is nullptr" << endl; */
-    /* } */
-    /* ::mysql_free_result(result); */
-    /* ::mysql_library_end(); */
-    /* int rows = getTableLineNum("question"); */ 
-    /* cout << rows << endl; */
+    sql = "selectt * from question where question='能'";
+    cout << sql << endl;
+    ::mysql_query(&conn, sql.c_str());
+    result = ::mysql_store_result(&conn);
+    if(result)
+    {
+        cout << "result is not nullptr" << endl;
+        MYSQL_ROW row = mysql_fetch_row(result);
+        if(row)
+        {
+            cout << "row is not nullptr" << endl;
+        }
+        else
+        {
+            cout << "row is nullptr" << endl;
+        }
+    }
+    else
+    {
+        cout << "result is nullptr" << endl;
+    }
+    ::mysql_free_result(result);
+    ::mysql_library_end();
+    int rows = getTableLineNum("question"); 
+    cout << rows << endl;
 
     return 0;
 }

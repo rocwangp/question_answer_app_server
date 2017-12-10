@@ -13,6 +13,8 @@ class DataBase;
 class HttpServer : noncopyable
 {
 public:
+    typedef std::unordered_map<std::string, std::string> DataInfoMap;
+
     HttpServer(EventLoop* loop, const InetAddress& localaddr);
     ~HttpServer();
 
@@ -33,10 +35,10 @@ private:
     bool insertQuestion(const std::string& question, const std::string& questionDetail, int userId);
     bool insertAnswer(int questionId, const std::string& answer, int userId);
     bool insertComment(int answerId, const std::string& comment, int userId);
-    bool insertUser(const std::string& user, const std::string& password);
+    bool insertUser(const std::string& account, const std::string& password, const std::string& username);
 
-    void checkUser(const std::string& user);
-    void loginUser(const std::string& user, const std::string& password);
+    bool checkUser(const std::string& account);
+    DataInfoMap loginUser(const std::string& account, const std::string& password);
 
     void initStopWordMap();
     void setSignalHandler(int signo, void(*handler)(int));

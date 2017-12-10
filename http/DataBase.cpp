@@ -60,10 +60,11 @@ void DataBase::initMySql(const string& username,
 
 void DataBase::initDataNum()
 {
-    questionNum_ = getTableLineNum("question");
-    answerNum_ = getTableLineNum("answer");
-    commentNum_ = getTableLineNum("comment");
-    userNum_ = getTableLineNum("user");
+    questionNum_ = getTableLineNum("question", "questionId");
+    answerNum_ = getTableLineNum("answer", "answerId");
+    /* commentNum_ = getTableLineNum("comment", "commentId"); */
+    userNum_ = getTableLineNum("user", "userId");
+    LOG_INFO << questionNum_ << " " << answerNum_ << " " << commentNum_ << " " << userNum_;
 }
 
 void DataBase::initMutex()
@@ -81,7 +82,7 @@ DataBase::queryFromTable(const string& table, const TableInfoMap& queryMap)
     for(auto it = queryMap.begin(); it != queryMap.end();)
     {
         sql += it->first + "=" + "'" + it->second + "'";
-        if(++it != queryMap.end()) { sql += "and"; }
+        if(++it != queryMap.end()) { sql += " and "; }
     }
     LOG_DEBUG << "sql is " << sql;
 
@@ -146,16 +147,34 @@ bool DataBase::updateTable(const string& table,
     return true;
 }
 
-int DataBase::getTableLineNum(const string& table)
+int DataBase::getTableLineNum(const string& table, const string& columnName)
 {
     string sql = "select * from " + table;
     ::mysql_query(&conn_, sql.c_str());
     MYSQL_RES *result = ::mysql_store_result(&conn_);
     int lineNum = -1;
     if(result)
+    {
         lineNum = ::mysql_num_rows(result);
+    }
     ::mysql_free_result(result);
-    return lineNum;
+    if(lineNum <= 0)
+        return 1;
+
+    sql = "select max(" + columnName + ") from " + table;
+    ::mysql_query(&conn_, sql.c_str());
+    result = ::mysql_store_result(&conn_);
+    LOG_INFO << sql;
+    if(result)
+    {
+        MYSQL_ROW row = ::mysql_fetch_row(result);
+        if(row)
+        {
+            lineNum = StringUtil::toInt(row[0]);
+        }
+    }
+    ::mysql_free_result(result);
+    return lineNum + 1;
 }
 
 Question DataBase::parseQuestion(ifstream& fin)
@@ -219,16 +238,8 @@ DataBase::AnswerList DataBase::parseAnswers(ifstream &fin)
         else if(line == "\r")
         {
             answer = std::regex_replace(answer.substr(0, answer.size() - 1), re, fmt);
-            try
-            {
             if(!answer.empty())
                 answerList.emplace_back(Answer(0, answer, "2017-11-10:00:00", "0", ""));
-            }
-            catch(...)
-            {
-                LOG_FATAL << answer;
-                ::abort();
-            }
             answer = "";
         }
         else
@@ -241,7 +252,7 @@ DataBase::AnswerList DataBase::parseAnswers(ifstream &fin)
 
 
 
-void DataBase::insertWord(int questionNum, const string& word)
+void DataBase::insertWord(int questionId, const string& word)
 {
     string findSql = "select * from word where word='" + word + "'";
     ::mysql_query(&conn_, findSql.c_str());
@@ -265,7 +276,7 @@ void DataBase::insertWord(int questionNum, const string& word)
 
             if(!questionIdStr.empty())
                 questionIdStr += ",";
-            questionIdStr += StringUtil::toString(questionNum + 1);
+            questionIdStr += StringUtil::toString(questionId);
             
             string updateSql = "update word set ";
             updateSql += "questionIds='" + questionIdStr + "' "
@@ -277,7 +288,7 @@ void DataBase::insertWord(int questionNum, const string& word)
         {
             string insertSql = "insert into word values(";
             insertSql += "'" + word + "'" + ","
-                      +  "'" + StringUtil::toString(questionNum) + "'" + ")";
+                      +  "'" + StringUtil::toString(questionId) + "'" + ")";
             ::mysql_query(&conn_, insertSql.c_str());
         }
         ::mysql_free_result(result);
@@ -303,8 +314,18 @@ void DataBase::insertAnswerList(const AnswerList& answerObjList)
                   [this](const Answer& answerObj) { this->insertAnswer(answerObj); });
 }
 
-bool DataBase::insertQuestion(const Question& questionObj)
+bool DataBase::insertQuestion(const Question& questionObj, 
+                              const JiebaPtr& jieba, 
+                              const StopWordMap& stopWord)
 {
+    vector<string> words;
+    jieba->CutForSearch(questionObj.question(), words, true);
+    for(string& word : words)
+    {
+        if(stopWord.find(word) == stopWord.end())
+            insertWord(questionObj.questionId(), word);
+    }
+
     string sql = "insert into question values(";
     sql += "'" + StringUtil::toString(questionObj.questionId()) + "'" + ","
         +  "'" + questionObj.question()         + "'" + ","
@@ -317,6 +338,29 @@ bool DataBase::insertQuestion(const Question& questionObj)
     LOG_INFO << sql;
     LOG_INFO << "insert question : " << questionObj.question();
     LOG_INFO << "answerIds : " << questionObj.answerIds();
+    return true;
+}
+
+
+bool DataBase::insertUser(const User& userObj)
+{
+    string sql = "insert into user values(";
+    sql += "'" + StringUtil::toString(userObj.userId()) + "'" + ","
+        +  "'" + userObj.account()              + "'" + ","
+        +  "'" + userObj.password()             + "'" + ","
+        +  "'" + userObj.username()             + "'" + ","
+        +  "'" + userObj.articleIds()           + "'" + ","
+        +  "'" + userObj.collectQuestionIds()   + "'" + ","
+        +  "'" + userObj.careQuestionIds()      + "'" + ","
+        +  "'" + userObj.careUserIds()          + "'" + ","
+        +  "'" + userObj.fansIds()              + "'" + ","
+        +  "'" + userObj.publishQuestionIds()   + "'" + ","
+        +  "'" + userObj.publishAnswerIds()     + "'" + ","
+        +  "'" + userObj.publishCommentIds()    + "'" + ","
+        +  "'" + userObj.likeAnswerIds()        + "'" + ")";
+    ::mysql_query(&conn_, sql.c_str());
+    
+    LOG_INFO << sql;
     return true;
 }
 
@@ -390,24 +434,17 @@ bool DataBase::updateDataBase(const string& filename,
                 int questionId = nextQuestionId(1);
                 int answerId = nextAnswerId(answerObjList.size());
 
-                vector<string> words;
-                jieba->CutForSearch(questionObj.question(), words, true);
-                for(string& word : words)
-                {
-                    if(word.empty() || word == "\n" || word == " " || stopWord.find(word) != stopWord.end())
-                        continue;
-                    insertWord(questionId, word);
-                }
-
-                insertAnswerList(answerObjList);
-
                 string answerIdStr("");
                 for(int i = 0; i < static_cast<int>(answerObjList.size()); ++i)
+                {
+                    answerObjList[i].setAnswerId(answerId + i);
                     answerIdStr .append(StringUtil::toString(answerId + i) + ",");
+                }
                 answerIdStr.pop_back();
                 questionObj.setAnswerIds(answerIdStr);
                 questionObj.setQuestionId(questionId);
-                insertQuestion(questionObj);
+                insertAnswerList(answerObjList);
+                insertQuestion(questionObj, jieba, stopWord);
             }
             ::mysql_free_result(result);
         }
@@ -415,6 +452,7 @@ bool DataBase::updateDataBase(const string& filename,
         else
         {
             LOG_ERROR << "sql is incorrent";
+            LOG_ERROR << findQuestionSql;
         }
 
     }

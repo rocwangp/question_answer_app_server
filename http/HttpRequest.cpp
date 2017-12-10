@@ -148,12 +148,14 @@ void HttpRequest::Impl::clear()
 
 void HttpRequest::Impl::formatMethod(const string& header)
 {
-    string pattern = "([GET|POST|PUT|DELETE]) +[^ ]+ HTTPS?/[0-9](\\.[0-9])?\r\n";
+    string pattern = "([A-Z]+) +[^ ]+ HTTPS?/[0-9](\\.[0-9])?\r\n";
     std::regex re(pattern, std::regex::icase);
     std::smatch results;
     if(regex_search(header, results, re))
     {
         string method = StringUtil::toLower(results[1]);
+        LOG_INFO << results.str() << " " << results[1];
+        LOG_INFO << method;
         if(method == "get")
             method_ = HttpRequest::HttpMethod::GET;
         else if(method == "post")
@@ -167,6 +169,7 @@ void HttpRequest::Impl::formatMethod(const string& header)
     }
     else
     {
+        LOG_INFO << "http request method is incorrent";
         requestValid_ = false;
     }
 }
@@ -334,6 +337,7 @@ void HttpRequest::Impl::formatArgument(const string& header)
         if(document.HasMember("typeId"))
         {
             int typeId = StringUtil::toInt(document["typeId"].GetString());
+            LOG_INFO << typeId;
             if(typeId < HttpRequest::HttpType::NUMS_TYPE)
                 type_ = HttpRequest::HttpType(typeId);
         }
@@ -341,6 +345,7 @@ void HttpRequest::Impl::formatArgument(const string& header)
         if(type_ == HttpRequest::HttpType::QUERY_QUESTION && 
            document.HasMember("question"))
         {
+            LOG_INFO << "query question";
             arguments_["question"] = document["question"].GetString();
         }
         else if(type_ == HttpRequest::HttpType::QUERY_ANSWER && 
@@ -386,22 +391,22 @@ void HttpRequest::Impl::formatArgument(const string& header)
             arguments_["userId"] = document["userId"].GetString();
         }
         else if(type_ == HttpRequest::HttpType::INSERT_USER &&
-                document.HasMember("user") &&
+                document.HasMember("account") &&
                 document.HasMember("password"))
         {
-            arguments_["user"] = document["user"].GetString();
+            arguments_["account"] = document["account"].GetString();
             arguments_["password"] = document["password"].GetString();
         }
         else if(type_ == HttpRequest::HttpType::CHECK_USER &&
-                document.HasMember("user"))
+                document.HasMember("account"))
         {
-            arguments_["user"] = document["user"].GetString();
+            arguments_["account"] = document["account"].GetString();
         }
         else if(type_ == HttpRequest::HttpType::LOGIN_USER &&
-                document.HasMember("user") &&
+                document.HasMember("account") &&
                 document.HasMember("password"))
         {
-            arguments_["user"] = document["user"].GetString();
+            arguments_["account"] = document["account"].GetString();
             arguments_["password"] = document["password"].GetString();
         }
         else
@@ -449,6 +454,32 @@ HttpRequest::ArgumentMap HttpRequest::getArguments() const
     return impl_->arguments_;
 }
 
+string HttpRequest::method() const
+{
+    if(impl_->method_ == HttpMethod::GET)
+        return "get";
+    else if(impl_->method_ == HttpMethod::POST)
+        return "post";
+    else if(impl_->method_ == HttpMethod::PUT)
+        return "put";
+    else if(impl_->method_ == HttpMethod::DELETE)
+        return "delete";
+    else if(impl_->method_ == HttpMethod::NONE)
+        return "none";
+    else
+        return "";
+}
+
+string HttpRequest::host() const
+{
+    return impl_->host_;
+}
+
+string HttpRequest::source() const
+{
+    return impl_->source_;
+}
+
 string HttpRequest::contentType() const
 {
     if(impl_->contentType_.empty())
@@ -457,11 +488,19 @@ string HttpRequest::contentType() const
         return impl_->contentType_;
 }
 
+string HttpRequest::userAgent() const
+{
+    return impl_->userAgent_;
+}
 double HttpRequest::version() const
 {
     return impl_->version_;
 }
 
+uint64_t HttpRequest::contentLength() const
+{
+    return impl_->contentLength_;
+}
 bool HttpRequest::isValid() const
 {
     return impl_->requestValid_;

@@ -50,12 +50,12 @@ public:
     int nextCommentId(int steps = 0);
     int nextUserId(int steps = 0);
 
-
-    bool insertAnswer(const Answer& answer);
-    bool insertQuestion(const Question& questionObj);
+    bool insertUser(const User& userObj);
+    bool insertAnswer(const Answer& answerObj);
+    bool insertQuestion(const Question& questionObj, const JiebaPtr& jieba, const StopWordMap& stopWord);
     bool updateQuestion(const Question& questionObj);
 private:
-    int getTableLineNum(const std::string& table);
+    int getTableLineNum(const std::string& table, const std::string& columnName);
     
     void insertWord(int questionNum, const std::string& word);
     void insertAnswerList(const AnswerList& answerList);

@@ -74,14 +74,14 @@ def answer_splider():
             "19553298", "19551557", "19550560", "19550937", "19555457", "19554827", "19556664", "19562906", "19556950", "19575492", "19609455"]
     random.shuffle(ids)
     re_url = r'((ht|f)tps?):\/\/[\w\-]+(\.[\w\-]+)+([\w\-\.,@?^=%&:\/~\+#]*[\w\-\@?^=%&\/~\+#])?'
-    for id in ids:
+    browser = webdriver.PhantomJS()
+    for id in ids[0:5]:
         spider_page = 1;
         url = "https://www.zhihu.com/topic/" + id + "/top-answers?page="
         print url
         while spider_page < 3:
             page_url = url + str(spider_page)
             spider_page += 1
-            browser = webdriver.PhantomJS()
             print page_url
             browser.get(page_url)
             print page_url
@@ -131,6 +131,7 @@ def answer_splider():
                             spider_count -= 10
 
                 f.write("\r\r\n")
+
     browser.quit()
     f.close()
 

@@ -35,6 +35,7 @@ static const string WORD_TABLE_NAME = "word";
 static const string QUESTION_TABLE_NAME = "question";
 static const string ANSWER_TABLE_NAME = "answer";
 static const string COMMENT_TABLE_NAME = "comment";
+static const string USER_TABLE_NAME = "user";
 static const int PORT_NUM = 3306;
 
 pid_t HttpServer::pid_ = -1;
@@ -91,7 +92,7 @@ void HttpServer::initStopWordMap()
 
 bool HttpServer::isStopWord(const string& word)
 {
-    return stopWord_.find(word) == stopWord_.end();
+    return stopWord_.find(word) != stopWord_.end();
 }
 
 /* FIXME: 改成滚动日志 */
@@ -199,6 +200,7 @@ void HttpServer::onMessageCallBack(const TcpConnectionPtr& conn, Buffer& buffer)
 {
     /* 从缓冲区中取出所有数据，通常是一次请求的数据 */
     string header = buffer.retrieve(buffer.readableBytes()); 
+    LOG_INFO << header;
     httpRequest_->parseHeader(header);
     
     if(httpRequest_->isGetMethod())
@@ -228,7 +230,8 @@ vector<Question> HttpServer::queryQuestion(const string& keyWords)
     unordered_map<string, string> queryMap;
     for(string &word : words)
     {
-        if(word.empty() || isStopWord(word)) { continue; }
+        LOG_DEBUG << word;
+        if(word.empty() || isStopWord(word)) { LOG_DEBUG << "is stopword"; continue; }
         queryMap["word"] = word;
         DataBase::TableInfoMap wordInfo = 
             dataBase_->queryFromTable(WORD_TABLE_NAME, queryMap);
@@ -256,6 +259,7 @@ vector<Question> HttpServer::queryQuestion(const string& keyWords)
                                            questionInfo["date"], questionInfo["userId"],  
                                            questionInfo["answerIds"]));
     }
+    LOG_DEBUG << questionList.size();
     return questionList;
 }
 
@@ -312,7 +316,7 @@ bool HttpServer::insertQuestion(const string& question, const string& questionDe
 {
     int id = dataBase_->nextQuestionId(1);
     Question questionObj(id, question, questionDetail, HttpServer::currentTime(), StringUtil::toString(userId), "");
-    dataBase_->insertQuestion(questionObj);
+    dataBase_->insertQuestion(questionObj, jieba_, stopWord_);
     return true;
 }
 
@@ -330,6 +334,34 @@ bool HttpServer::insertComment(int answerId, const string& comment, int userId)
     return true; 
 }
 
+bool HttpServer::insertUser(const string& account, const string& password, const string& username)
+{
+    int id = dataBase_->nextUserId(1);
+    dataBase_->insertUser(User(id, account, password, username));
+    return true;
+}
+
+bool HttpServer::checkUser(const string& account)
+{
+    unordered_map<string, string> queryMap;
+    queryMap.insert(std::make_pair("account", account));
+    DataBase::TableInfoMap userInfo = dataBase_->queryFromTable(USER_TABLE_NAME, queryMap);
+    if(!userInfo.empty())
+        return true;
+    else
+        return false;
+}
+
+HttpServer::DataInfoMap
+HttpServer::loginUser(const string& account, const string& password)
+{
+    unordered_map<string, string> queryMap;
+    queryMap.insert(std::make_pair("account", account));
+    queryMap.insert(std::make_pair("password", password));
+    return dataBase_->queryFromTable(USER_TABLE_NAME, queryMap);
+}
+
+
 void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
 {
     vector<unordered_map<string, string>> queryList;
@@ -337,6 +369,7 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
 
     if(httpRequest_->isQueryQuestion())
     {
+        LOG_DEBUG << "isQueryQuestion";
         vector<Question> questionList = queryQuestion(argumentsMap["question"]);
         std::for_each(questionList.begin(),
                       questionList.end(),
@@ -366,13 +399,14 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
     /* 发布问题 */
     else if(httpRequest_->isInsertQuestion())
     {
-        unordered_map<string, string> insertRes;
+        DataInfoMap insertRes;
         if(insertQuestion(argumentsMap["question"], 
                           argumentsMap["questionDetail"], 
                           StringUtil::toInt(argumentsMap["userId"])))
             insertRes.insert(std::make_pair("result", "success"));
         else
             insertRes.insert(std::make_pair("result", "failure"));
+        queryList.emplace_back(insertRes);
         httpResponse_->setCode(200);
     }
     /* 回答问题 */
@@ -392,17 +426,37 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
     /* 注册账号 */
     else if(httpRequest_->isInsertUser())
     {
-        /* insertUser(argumentsMap["user"], argumentsMap["password"]); */
+        DataInfoMap insertRes;
+        if(insertUser(argumentsMap["account"], 
+                      argumentsMap["password"], 
+                      argumentsMap["username"]))
+            insertRes.insert(std::make_pair("result", "success"));
+        else
+            insertRes.insert(std::make_pair("result", "failure"));
+        queryList.emplace_back(insertRes);
+        httpResponse_->setCode(200);
     }
     /* 核查用户名是否已使用 */
     else if(httpRequest_->isCheckUser())
     {
-        /* checkUser(argumentsMap["user"]); */
+        DataInfoMap checkRes;
+        if(checkUser(argumentsMap["account"]))
+            checkRes.insert(std::make_pair("result", "success"));
+        else
+            checkRes.insert(std::make_pair("result", "failure"));
+        queryList.emplace_back(checkRes);
+        httpResponse_->setCode(200);
     }
     /* 用户登录，检查账号密码 */
     else if(httpRequest_->isLoginUser())
     {
-        /* loginUser(argumentsMap["user"], argumentsMap["password"]); */
+        DataInfoMap loginRes = loginUser(argumentsMap["account"], argumentsMap["password"]);
+        if(!loginRes.empty())
+            loginRes.insert(std::make_pair("result", "success"));
+        else
+            loginRes.insert(std::make_pair("result", "failure"));
+        queryList.emplace_back(loginRes);
+        httpResponse_->setCode(200);
     }
     else
     {
@@ -420,7 +474,7 @@ void HttpServer::handleGetMethod(const TcpConnectionPtr& conn)
 {
     vector<unordered_map<string, string>> queryList;
     unordered_map<string, string> queryMap;
-    queryMap["welcome"] = "hello, welcome to use app";
+    queryMap.insert(std::make_pair("welcome", "hello, welcome to use app"));
     queryList.emplace_back(queryMap);
     httpResponse_->setCode(200);
     httpResponse_->setVersion(httpRequest_->version());
