@@ -322,10 +322,29 @@ bool HttpServer::insertQuestion(const string& question, const string& questionDe
 
 bool HttpServer::insertAnswer(int questionId, const string& answer, int userId)
 {
-    int id = dataBase_->nextAnswerId(1);
-    Answer answerObj(id, answer, HttpServer::currentTime(), StringUtil::toString(userId), "");
+    unordered_map<string, string> queryMap;
+    queryMap.insert(std::make_pair("questionId", StringUtil::toString(questionId)));
+    DataBase::TableInfoMap questionInfo = 
+        dataBase_->queryFromTable(QUESTION_TABLE_NAME, queryMap);
+    if(questionInfo.empty())
+        return false;
+
+    
+    int answerId = dataBase_->nextAnswerId(1);
+    Answer answerObj(answerId, answer, HttpServer::currentTime(), StringUtil::toString(userId), "");
     dataBase_->insertAnswer(answerObj);
-    dataBase_->updateQuestion(Question(questionId, "", "", "", "", StringUtil::toString(id)));
+    
+    string answerIds = questionInfo["answerIds"];
+    if(!answerIds.empty())
+        answerIds += ",";
+    answerIds += StringUtil::toString(answerId);
+    
+    dataBase_->updateQuestion(Question(questionId, 
+                                       questionInfo["question"], 
+                                       questionInfo["questionMap"], 
+                                       questionInfo["date"],
+                                       questionInfo["userId"], 
+                                       answerIds));
     return true;
 }
 
@@ -334,17 +353,17 @@ bool HttpServer::insertComment(int answerId, const string& comment, int userId)
     return true; 
 }
 
-bool HttpServer::insertUser(const string& account, const string& password, const string& username)
+bool HttpServer::insertUser(const string& username, const string& password, const string& nickname)
 {
     int id = dataBase_->nextUserId(1);
-    dataBase_->insertUser(User(id, account, password, username));
+    dataBase_->insertUser(User(id, username, password, nickname));
     return true;
 }
 
-bool HttpServer::checkUser(const string& account)
+bool HttpServer::checkUser(const string& username)
 {
     unordered_map<string, string> queryMap;
-    queryMap.insert(std::make_pair("account", account));
+    queryMap.insert(std::make_pair("username", username));
     DataBase::TableInfoMap userInfo = dataBase_->queryFromTable(USER_TABLE_NAME, queryMap);
     if(!userInfo.empty())
         return true;
@@ -353,10 +372,10 @@ bool HttpServer::checkUser(const string& account)
 }
 
 HttpServer::DataInfoMap
-HttpServer::loginUser(const string& account, const string& password)
+HttpServer::loginUser(const string& username, const string& password)
 {
     unordered_map<string, string> queryMap;
-    queryMap.insert(std::make_pair("account", account));
+    queryMap.insert(std::make_pair("username", username));
     queryMap.insert(std::make_pair("password", password));
     return dataBase_->queryFromTable(USER_TABLE_NAME, queryMap);
 }
@@ -427,9 +446,9 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
     else if(httpRequest_->isInsertUser())
     {
         DataInfoMap insertRes;
-        if(insertUser(argumentsMap["account"], 
+        if(insertUser(argumentsMap["username"], 
                       argumentsMap["password"], 
-                      argumentsMap["username"]))
+                      argumentsMap["nickname"]))
             insertRes.insert(std::make_pair("result", "success"));
         else
             insertRes.insert(std::make_pair("result", "failure"));
@@ -440,7 +459,7 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
     else if(httpRequest_->isCheckUser())
     {
         DataInfoMap checkRes;
-        if(checkUser(argumentsMap["account"]))
+        if(checkUser(argumentsMap["username"]))
             checkRes.insert(std::make_pair("result", "success"));
         else
             checkRes.insert(std::make_pair("result", "failure"));
@@ -450,7 +469,7 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
     /* 用户登录，检查账号密码 */
     else if(httpRequest_->isLoginUser())
     {
-        DataInfoMap loginRes = loginUser(argumentsMap["account"], argumentsMap["password"]);
+        DataInfoMap loginRes = loginUser(argumentsMap["username"], argumentsMap["password"]);
         if(!loginRes.empty())
             loginRes.insert(std::make_pair("result", "success"));
         else

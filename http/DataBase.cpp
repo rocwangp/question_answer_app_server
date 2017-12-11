@@ -373,27 +373,31 @@ bool DataBase::updateQuestion(const Question& questionObj)
     MYSQL_RES *result = ::mysql_store_result(&conn_);
     if(result)
     {
-        MYSQL_ROW row = mysql_fetch_row(result);
-        int fieldNum = mysql_num_fields(result);
-        string answerIdStr("");
-        for(int i = 0; i < fieldNum; ++i)
-        {
-            MYSQL_FIELD *field = mysql_fetch_field_direct(result, i);
-            if(::strncmp(field->name, "answerIds", ::strlen(field->name)) == 0)
-            {
-                answerIdStr.assign(row[i], strlen(row[i]));
-                break;
-            }
-        }
+        /* MYSQL_ROW row = mysql_fetch_row(result); */
+        /* int fieldNum = mysql_num_fields(result); */
+        /* string answerIdStr(""); */
+        /* for(int i = 0; i < fieldNum; ++i) */
+        /* { */
+        /*     MYSQL_FIELD *field = mysql_fetch_field_direct(result, i); */
+        /*     if(::strncmp(field->name, "answerIds", ::strlen(field->name)) == 0) */
+        /*     { */
+        /*         answerIdStr.assign(row[i], strlen(row[i])); */
+        /*         break; */
+        /*     } */
+        /* } */
         mysql_free_result(result);
     
-        if(!answerIdStr.empty())
-            answerIdStr.append(',', 1);
-        answerIdStr.append(questionObj.answerIds());
+        /* if(!answerIdStr.empty()) */
+        /*     answerIdStr.append(',', 1); */
+        /* answerIdStr.append(questionObj.answerIds()); */
 
-        string updateSql = "update question set answerIds='" + answerIdStr 
-                        + "' where questionId='" 
-                        + StringUtil::toString(questionObj.questionId()) + "'";
+        string updateSql = "update question set ";
+        updateSql += "question='" + questionObj.question()             + "'" + ","
+                  +  "questionDetail='" + questionObj.questionDetail() + "'" + ","
+                  +  "date='" + questionObj.date()                     + "'" + ","
+                  +  "userId='" + questionObj.userId()                 + "'" + ","
+                  +  "answerIds='" + questionObj.answerIds()           + "'" + " "
+                  +  "where questionId='" + StringUtil::toString(questionObj.questionId()) + "'";
 
         ::mysql_query(&conn_, updateSql.c_str());
         return true;

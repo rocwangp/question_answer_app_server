@@ -391,22 +391,22 @@ void HttpRequest::Impl::formatArgument(const string& header)
             arguments_["userId"] = document["userId"].GetString();
         }
         else if(type_ == HttpRequest::HttpType::INSERT_USER &&
-                document.HasMember("account") &&
+                document.HasMember("username") &&
                 document.HasMember("password"))
         {
-            arguments_["account"] = document["account"].GetString();
+            arguments_["username"] = document["username"].GetString();
             arguments_["password"] = document["password"].GetString();
         }
         else if(type_ == HttpRequest::HttpType::CHECK_USER &&
-                document.HasMember("account"))
+                document.HasMember("username"))
         {
-            arguments_["account"] = document["account"].GetString();
+            arguments_["username"] = document["username"].GetString();
         }
         else if(type_ == HttpRequest::HttpType::LOGIN_USER &&
-                document.HasMember("account") &&
+                document.HasMember("username") &&
                 document.HasMember("password"))
         {
-            arguments_["account"] = document["account"].GetString();
+            arguments_["username"] = document["username"].GetString();
             arguments_["password"] = document["password"].GetString();
         }
         else

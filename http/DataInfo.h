@@ -161,90 +161,91 @@ class User
 {
 public:
     User() {}
-    explicit User(int userId,               const string& account, 
-                  const string& password,   const string& username, 
+    explicit User(int userId,               const string& username, 
+                  const string& password,   const string& nickname, 
                   const string& articleIds = "", 
-                  const string& collectQuestionIds = "",
-                  const string& careQuestionIds = "", 
-                  const string& careUserIds = "",
+                  const string& questionCollectedIds = "",
+                  const string& questionFollowedIds = "", 
+                  const string& userFollowedIds = "",
                   const string& fansIds = "",    
-                  const string& publishQuestionIds = "",
-                  const string& publishAnswerIds = "",
-                  const string& publishCommentIds = "",
-                  const string& likeAnswerIds= "")
+                  const string& questionPublishedIds = "",
+                  const string& answerPublishedIds = "",
+                  const string& commentPublishedIds = "",
+                  const string& answerUpvotedIds= "")
         : userId_(userId),
-          account_(account),
-          password_(password),
           username_(username),
+          password_(password),
+          nickname_(nickname),
           articleIds_(articleIds),
-          collectQuestionIds_(collectQuestionIds),
-          careQuestionIds_(careQuestionIds),
-          careUserIds_(careUserIds),
+          questionCollectedIds_(questionCollectedIds),
+          questionFollowedIds_(questionFollowedIds),
+          userFollowedIds_(userFollowedIds),
           fansIds_(fansIds),
-          publishQuestionIds_(publishQuestionIds),
-          publishAnswerIds_(publishAnswerIds),
-          publishCommentIds_(publishCommentIds),
-          likeAnswerIds_(likeAnswerIds)
+          questionPublishedIds_(questionPublishedIds),
+          answerPublishedIds_(answerPublishedIds),
+          commentPublishedIds_(commentPublishedIds),
+          answerUpvotedIds_(answerUpvotedIds)
     {  }
 
     ~User() {}
 
     int userId() const { return userId_; }
-    string account() const { return account_; }
-    string password() const { return password_; }
     string username() const { return username_; }
+    string password() const { return password_; }
+    string nickname() const { return nickname_; }
     string articleIds() const { return articleIds_; }
-    string collectQuestionIds() const { return collectQuestionIds_; }
-    string careQuestionIds() const { return careQuestionIds_; }
-    string careUserIds() const { return careUserIds_; }
+    string questionCollectedIds() const { return questionCollectedIds_; }
+    string questionFollowedIds() const { return questionFollowedIds_; }
+    string userFollowedIds() const { return userFollowedIds_; }
     string fansIds() const { return fansIds_; }
-    string publishQuestionIds() const { return publishQuestionIds_; }
-    string publishAnswerIds() const { return publishAnswerIds_; }
-    string publishCommentIds() const { return publishCommentIds_; }
-    string likeAnswerIds() const { return likeAnswerIds_; }
+    string questionPublishedIds() const { return questionPublishedIds_; }
+    string answerPublishedIds() const { return answerPublishedIds_; }
+    string commentPublishedIds() const { return commentPublishedIds_; }
+    string answerUpvotedIds() const { return answerUpvotedIds_; }
 
     void setUserId(int userId) { userId_ = userId; }
-    void setAccount(const string& account) { account_ = account; }
+    void setusername(const string& username) { username_ = username; }
     void setPassword(const string& password) { password_ = password; }
     void setUsername(const string& username) { username_ = username; }
     void setArticleIds(const string& articleIds) { articleIds_ = articleIds; }
-    void setCollectQuestionIds(const string& collectQuestionIds) { collectQuestionIds_ = collectQuestionIds; }
-    void setCareQuestionIds(const string& careQuestionIds) { careQuestionIds_ = careQuestionIds; }
+    void setquestionCollectedIds(const string& questionCollectedIds) { questionCollectedIds_ = questionCollectedIds; }
+    void setquestionFollowedIds(const string& questionFollowedIds) { questionFollowedIds_ = questionFollowedIds; }
     void setFansIds(const string& fansIds) { fansIds_ = fansIds; }
-    void setPublishQuestionIds(const string& publishQuestionIds) { publishQuestionIds_ = publishQuestionIds; }
-    void setPublishAnswerIds(const string& publishAnswerIds) { publishAnswerIds_ = publishAnswerIds; }
-    void setPublishCommentIds(const string& publishCommentIds) { publishCommentIds_ = publishCommentIds; }
-    void setLikeAnswerIds(const string& likeAnswerIds) { likeAnswerIds_ = likeAnswerIds; }
+    void setquestionPublishedIds(const string& questionPublishedIds) { questionPublishedIds_ = questionPublishedIds; }
+    void setanswerPublishedIds(const string& answerPublishedIds) { answerPublishedIds_ = answerPublishedIds; }
+    void setcommentPublishedIds(const string& commentPublishedIds) { commentPublishedIds_ = commentPublishedIds; }
+    void setanswerUpvotedIds(const string& answerUpvotedIds) { answerUpvotedIds_ = answerUpvotedIds; }
 
     unordered_map<string, string> toMap()
     {
         unordered_map<string, string> userMap;
         userMap.insert(std::make_pair("userId", StringUtil::toString(userId_)));
-        userMap.insert(std::make_pair("account", account_));
+        userMap.insert(std::make_pair("username", username_));
         userMap.insert(std::make_pair("password", password_));
+        userMap.insert(std::make_pair("nickname", nickname_));
         userMap.insert(std::make_pair("articleIds", articleIds_));
-        userMap.insert(std::make_pair("collectQuestionIds", collectQuestionIds_));
-        userMap.insert(std::make_pair("careQuestionIds", careQuestionIds_));
-        userMap.insert(std::make_pair("careUserIds", careUserIds_));
+        userMap.insert(std::make_pair("questionCollectedIds", questionCollectedIds_));
+        userMap.insert(std::make_pair("questionFollowedIds", questionFollowedIds_));
+        userMap.insert(std::make_pair("userFollowedIds", userFollowedIds_));
         userMap.insert(std::make_pair("fansIds", fansIds_));
-        userMap.insert(std::make_pair("publishQuestionIds", publishQuestionIds_));
-        userMap.insert(std::make_pair("publishAnswerIds", publishAnswerIds_));
-        userMap.insert(std::make_pair("publishCommentIds", publishCommentIds_));
-        userMap.insert(std::make_pair("likeAnswerIds", likeAnswerIds_));
+        userMap.insert(std::make_pair("questionPublishedIds", questionPublishedIds_));
+        userMap.insert(std::make_pair("answerPublishedIds", answerPublishedIds_));
+        userMap.insert(std::make_pair("commentPublishedIds", commentPublishedIds_));
+        userMap.insert(std::make_pair("answerUpvotedIds", answerUpvotedIds_));
         return userMap;
     }
 private:
     int userId_;
-    string account_;
-    string password_;
     string username_;
+    string password_;
+    string nickname_;
     string articleIds_;
-    string collectQuestionIds_;
-    string careQuestionIds_;
-    string careUserIds_;
+    string questionCollectedIds_;
+    string questionFollowedIds_;
+    string userFollowedIds_;
     string fansIds_;
-    string publishQuestionIds_;
-    string publishAnswerIds_;
-    string publishCommentIds_;
-    string likeAnswerIds_;
+    string questionPublishedIds_;
+    string answerPublishedIds_;
+    string commentPublishedIds_;
+    string answerUpvotedIds_;
 };
