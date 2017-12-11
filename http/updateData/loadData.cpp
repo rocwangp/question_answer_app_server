@@ -287,7 +287,7 @@ void updateDataBase()
 
     string pattern("'");
     std::regex re(pattern);
-    string fmt("\\'");
+    string fmt("\"")
     
     std::unordered_map<string, int> stopWord = initStopWord(); 
     while(!fin.eof())

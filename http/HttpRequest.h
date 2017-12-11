@@ -33,6 +33,9 @@ public:
         INSERT_USER = 7,
         CHECK_USER = 8,
         LOGIN_USER = 9,
+        SEARCH_USER = 10,
+        QUERY_FANS = 11,
+        QUERY_NOADOPTEDQUESTION = 12,
         UNKNOW_TYPE, 
         NUMS_TYPE
     };
@@ -61,6 +64,7 @@ public:
     bool isQueryAnswer() const;
     bool isQueryComment() const;
     bool isQueryUser() const;
+    bool isQueryFans() const;
 
     bool isInsertQuestion() const;
     bool isInsertAnswer() const;
@@ -71,6 +75,9 @@ public:
     bool isCheckUser() const;
     /* 登录账号时验证账号和密码，返回账户信息 */
     bool isLoginUser() const;
+
+    bool isSearchUser() const;
+    bool isQueryNoAdoptedQuestion() const;
 
 private:
     static std::string kDefaultContentType;

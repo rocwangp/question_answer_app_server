@@ -329,10 +329,19 @@ void HttpRequest::Impl::formatArgument(const string& header)
         using namespace rapidjson;
         Document document;
         document.Parse<0>(results[1].str().c_str());
-        if(document.HasParseError())
+        if(document.HasParseError() || !document.HasMember("typeId"))
         {
             requestValid_ = false;
             return;
+        }
+        for(rapidjson::Value::ConstMemberIterator it = document.MemberBegin();
+            it != document.MemberEnd(); ++it)
+        {
+            if(!it->value.IsString())
+            {
+                requestValid_ = false;
+                return;
+            }
         }
         if(document.HasMember("typeId"))
         {
@@ -363,13 +372,24 @@ void HttpRequest::Impl::formatArgument(const string& header)
         {
             arguments_["userId"] = document["userId"].GetString();
         }
+        else if(type_ == HttpRequest::HttpType::QUERY_FANS &&
+                document.HasMember("fansIds"))
+        {
+            arguments_["fansIds"] = document["fansIds"].GetString();
+        }
+        else if(type_ == HttpRequest::HttpType::QUERY_NOADOPTEDQUESTION)
+        {
+            
+        }
         else if(type_ == HttpRequest::HttpType::INSERT_QUESTION && 
                 document.HasMember("question") &&
-                document.HasMember("questionDetail") &&
                 document.HasMember("userId"))
         {
             arguments_["question"] = document["question"].GetString();
-            arguments_["questionDetail"] = document["questionDetail"].GetString();
+            if(document.HasMember("questionDetail"))
+                arguments_["questionDetail"] = document["questionDetail"].GetString();
+            else
+                arguments_["questionDetail"] = "";
             arguments_["userId"] = document["userId"].GetString();
         }
         else if(type_ == HttpRequest::HttpType::INSERT_ANSWER && 
@@ -408,6 +428,11 @@ void HttpRequest::Impl::formatArgument(const string& header)
         {
             arguments_["username"] = document["username"].GetString();
             arguments_["password"] = document["password"].GetString();
+        }
+        else if(type_ == HttpRequest::HttpType::SEARCH_USER && 
+                document.HasMember("nickname"))
+        {
+            arguments_["nickname"] = document["nickname"].GetString();
         }
         else
         {
@@ -541,6 +566,11 @@ bool HttpRequest::isQueryUser() const
     return impl_->type_ == HttpType::QUERY_USER;
 }
 
+bool HttpRequest::isQueryFans() const
+{
+    return impl_->type_ == HttpType::QUERY_FANS;
+}
+
 bool HttpRequest::isInsertQuestion() const
 {
     return impl_->type_ == HttpType::INSERT_QUESTION;
@@ -571,4 +601,12 @@ bool HttpRequest::isLoginUser() const
     return impl_->type_ == HttpType::LOGIN_USER;
 }
 
+bool HttpRequest::isSearchUser() const
+{
+    return impl_->type_ == HttpType::SEARCH_USER;
+}
 
+bool HttpRequest::isQueryNoAdoptedQuestion() const
+{
+    return impl_->type_ == HttpType::QUERY_NOADOPTEDQUESTION;
+}

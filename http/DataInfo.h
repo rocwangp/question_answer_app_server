@@ -13,14 +13,15 @@ public:
     Question() {}
     explicit Question(int questionId,               const string& question,
                       const string& questionDetail, const string& date, 
-                      const string& userId,         const string& answerIds)
+                      const string& userId,         const string& answerIds,
+                      const string& adopted)
         : questionId_(questionId),
           question_(question),
           questionDetail_(questionDetail),
           date_(date),
           userId_(userId),
           answerIds_(answerIds),
-          likeUserIds_("")
+          adopted_(adopted)
     {  }
 
     ~Question() {}
@@ -31,7 +32,7 @@ public:
     void setDate(const string& date) { date_ = date; }
     void setUserId(const string& userId) { userId_ = userId; }
     void setAnswerIds(const string& answerIds) { answerIds_ = answerIds; }
-    void setLikeUserIds(const string& likeUserIds) { likeUserIds_ = likeUserIds; }
+    void setAdopted() { adopted_ = "1"; }
 
     int questionId() const { return questionId_; }
     string question() const { return question_; }
@@ -39,7 +40,7 @@ public:
     string date() const { return date_; }
     string userId() const { return userId_; }
     string answerIds() const { return answerIds_;}
-    string likeUserIds() const { return likeUserIds_; }
+    string adopted() const { return adopted_; }
 
     bool isValid() const
     {
@@ -54,7 +55,7 @@ public:
         questionInfo.insert(std::make_pair("date", date_));
         questionInfo.insert(std::make_pair("userId", userId_));
         questionInfo.insert(std::make_pair("answerIds", answerIds_));
-        questionInfo.insert(std::make_pair("likeUserIds", likeUserIds_));
+        questionInfo.insert(std::make_pair("adopted", adopted_));
         return questionInfo;
     }
 private:
@@ -64,7 +65,7 @@ private:
     string date_;
     string userId_;
     string answerIds_;
-    string likeUserIds_;
+    string adopted_;
 };
 
 

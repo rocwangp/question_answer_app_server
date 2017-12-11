@@ -203,11 +203,11 @@ void HttpServer::onMessageCallBack(const TcpConnectionPtr& conn, Buffer& buffer)
     LOG_INFO << header;
     httpRequest_->parseHeader(header);
     
-    if(httpRequest_->isGetMethod())
+    if(httpRequest_->isValid() && httpRequest_->isGetMethod())
     {
         handleGetMethod(conn);
     }
-    else if(httpRequest_->isPostMethod())
+    else if(httpRequest_->isValid() && httpRequest_->isPostMethod())
     {
         handlePostMethod(conn);
     }
@@ -255,14 +255,38 @@ vector<Question> HttpServer::queryQuestion(const string& keyWords)
             dataBase_->queryFromTable(QUESTION_TABLE_NAME, queryMap);
         if(questionInfo.empty()) { continue; }
         questionList.emplace_back(Question(StringUtil::toInt(questionInfo["questionId"]),     
-                                           questionInfo["question"], questionInfo["questionDetail"], 
-                                           questionInfo["date"], questionInfo["userId"],  
-                                           questionInfo["answerIds"]));
+                                           questionInfo["question"], 
+                                           questionInfo["questionDetail"], 
+                                           questionInfo["date"], 
+                                           questionInfo["userId"],  
+                                           questionInfo["answerIds"],
+                                           questionInfo["adopted"]));
     }
     LOG_DEBUG << questionList.size();
     return questionList;
 }
 
+vector<Question> HttpServer::queryNoAdoptedQuestion()
+{
+    vector<Question> questionList;
+    unordered_map<string, string> queryMap;
+    queryMap.insert(std::make_pair("adopted", "0"));
+    vector<unordered_map<string, string>> questionInfoList = 
+        dataBase_->queryAllFromTable(QUESTION_TABLE_NAME, queryMap);
+
+    std::for_each(questionInfoList.begin(),
+                  questionInfoList.end(),
+                  [&questionList](unordered_map<string, string>& questionInfo){
+                    questionList.emplace_back(Question(StringUtil::toInt(questionInfo["questionId"]),
+                                                       questionInfo["question"],
+                                                       questionInfo["questionDetail"],
+                                                       questionInfo["date"],
+                                                       questionInfo["userId"],
+                                                       questionInfo["answerIds"],
+                                                       questionInfo["adopted"]));
+                  });
+    return questionList;
+}
 /* 根据答案id从数据库中查找答案 */
 vector<Answer> HttpServer::queryAnswer(const string& answerIds)
 {
@@ -301,19 +325,58 @@ vector<Comment> HttpServer::queryComment(const string& commentIds)
     return commentList;
 }
 
-User HttpServer::queryUser(const string& userId)
+vector<User> HttpServer::queryUser(const string& userId)
 {
+    vector<User> userList;
     unordered_map<string, string> queryMap;
     queryMap.insert(std::make_pair("userId", userId));
     DataBase::TableInfoMap userInfo = 
         dataBase_->queryFromTable(USER_TABLE_NAME, queryMap);
-    return User();
+    if(userInfo.empty())
+        return userList;
+    
+    userList.emplace_back(User(StringUtil::toInt(userInfo["userId"]), 
+                               userInfo["username"], userInfo["password"],
+                               userInfo["nickname"], userInfo["articleIds"],
+                               userInfo["questionCollectedIds"], userInfo["questionFollowedIds"],
+                               userInfo["userFollowedIds"], userInfo["fansIds"],
+                               userInfo["questionPublishedIds"], userInfo["answerPublishedIds"],
+                               userInfo["commentPublishedIds"], userInfo["answerUpvotedIds"]));
+    return userList;
+}
+
+vector<User> HttpServer::queryFans(const string& fansIds)
+{
+    vector<User> fansList;
+    vector<string> userIdList = StringUtil::split(fansIds, ',');
+    unordered_map<string, string> queryMap;
+    for(auto &userId : userIdList)
+    {
+        queryMap["userId"] = userId;
+        DataBase::TableInfoMap userInfo = 
+            dataBase_->queryFromTable(USER_TABLE_NAME, queryMap);
+        if(userInfo.empty())
+            continue;
+    }
+    return fansList;
+}
+vector<User> HttpServer::searchUser(const string& nickname)
+{
+    vector<User> userList;
+    unordered_map<string, string> queryMap;
+    queryMap.insert(std::make_pair("nickname", nickname));
+    DataBase::TableInfoMap userInfo = 
+        dataBase_->queryFromTable(USER_TABLE_NAME, queryMap);
+    if(userInfo.empty())
+        return userList;
+
+    return userList;
 }
 string HttpServer::currentTime()
 {
     time_t curTime = time(nullptr); 
     struct tm curtm = *localtime(&curTime);
-    string date = StringUtil::toString(curtm.tm_year) + "-"
+    string date = StringUtil::toString(curtm.tm_year + 1900) + "-"
                 + StringUtil::toString(curtm.tm_mon) + "-"
                 + StringUtil::toString(curtm.tm_mday) + ":"
                 + StringUtil::toString(curtm.tm_hour) + "::"
@@ -323,7 +386,9 @@ string HttpServer::currentTime()
 bool HttpServer::insertQuestion(const string& question, const string& questionDetail, int userId)
 {
     int id = dataBase_->nextQuestionId(1);
-    Question questionObj(id, question, questionDetail, HttpServer::currentTime(), StringUtil::toString(userId), "");
+    Question questionObj(id, question, questionDetail, 
+                         HttpServer::currentTime(), 
+                         StringUtil::toString(userId), "", "0");
     dataBase_->insertQuestion(questionObj, jieba_, stopWord_);
     return true;
 }
@@ -352,7 +417,8 @@ bool HttpServer::insertAnswer(int questionId, const string& answer, int userId)
                                        questionInfo["questionMap"], 
                                        questionInfo["date"],
                                        questionInfo["userId"], 
-                                       answerIds));
+                                       answerIds,
+                                       questionInfo["adopted"]));
     return true;
 }
 
@@ -425,8 +491,26 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
     }
     else if(httpRequest_->isQueryUser())
     {
-        User userObj = queryUser(argumentsMap["userId"]);
-        queryList.emplace_back(userObj.toMap());
+        vector<User> userList = queryUser(argumentsMap["userId"]);
+        std::for_each(userList.begin(),
+                      userList.end(),
+                      [&queryList](User& user) { queryList.emplace_back(user.toMap()); });
+        httpResponse_->setCode(200);
+    }
+    else if(httpRequest_->isQueryFans())
+    {
+        vector<User> fansList = queryUser(argumentsMap["fansIds"]);
+        std::for_each(fansList.begin(),
+                      fansList.end(),
+                      [&queryList](User& fans) { queryList.emplace_back(fans.toMap()); });
+        httpResponse_->setCode(200);
+    }
+    else if(httpRequest_->isQueryNoAdoptedQuestion())
+    {
+        vector<Question> questionList = queryNoAdoptedQuestion();
+        std::for_each(questionList.begin(),
+                      questionList.end(),
+                      [&queryList](Question& question) { queryList.emplace_back(question.toMap()); });
         httpResponse_->setCode(200);
     }
     /* 发布问题 */
@@ -447,8 +531,8 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
     {
         DataInfoMap insertRes;
         if(insertAnswer(StringUtil::toInt(argumentsMap["questionId"]), 
-                     argumentsMap["answer"],
-                     StringUtil::toInt(argumentsMap["userId"])))
+                        argumentsMap["answer"],
+                        StringUtil::toInt(argumentsMap["userId"])))
             insertRes.insert(std::make_pair("result", "success"));
         else
             insertRes.insert(std::make_pair("result", "failure"));
@@ -460,8 +544,8 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
     {
         DataInfoMap insertRes;
         if(insertComment(StringUtil::toInt(argumentsMap["answerId"]), 
-                      argumentsMap["comment"], 
-                      StringUtil::toInt(argumentsMap["userId"])))
+                        argumentsMap["comment"], 
+                        StringUtil::toInt(argumentsMap["userId"])))
             insertRes.insert(std::make_pair("result", "success"));
         else
             insertRes.insert(std::make_pair("result", "failure"));
@@ -500,28 +584,24 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
             loginRes.insert(std::make_pair("result", "success"));
         else
         {
+            loginRes = User().toMap();
             loginRes.insert(std::make_pair("result", "failure"));
-            loginRes.insert(std::make_pair("userId", ""));
-            loginRes.insert(std::make_pair("username", ""));
-            loginRes.insert(std::make_pair("password", ""));
-            loginRes.insert(std::make_pair("nickname", ""));
-            loginRes.insert(std::make_pair("articleIds", ""));
-            loginRes.insert(std::make_pair("questionCollectedIds", ""));
-            loginRes.insert(std::make_pair("questionFollowedIds", ""));
-            loginRes.insert(std::make_pair("userFollowedIds", ""));
-            loginRes.insert(std::make_pair("fansIds", ""));
-            loginRes.insert(std::make_pair("questionPublishedIds", ""));
-            loginRes.insert(std::make_pair("answerPublishedIds", ""));
-            loginRes.insert(std::make_pair("commentPublishedIds", ""));
-            loginRes.insert(std::make_pair("answerUpvotedIds", ""));
-
         }
         queryList.emplace_back(loginRes);
+        httpResponse_->setCode(200);
+    }
+    else if(httpRequest_->isSearchUser())
+    {
+        vector<User> userList = searchUser(argumentsMap["nickname"]);
+        std::for_each(userList.begin(),
+                      userList.end(),
+                      [&queryList](User& user) { queryList.emplace_back(user.toMap()); });
         httpResponse_->setCode(200);
     }
     else
     {
         handleErrorMethod(conn);
+        return;
     }
 
     httpResponse_->setVersion(httpRequest_->version());

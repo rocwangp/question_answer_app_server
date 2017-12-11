@@ -89,7 +89,7 @@ Question testInsertQuestion(DataBase& dataBase,
 {
     
     int id = dataBase.nextQuestionId(1);
-    Question questionObj(id, question, questionDetail, "2017-12-09", StringUtil::toString(userId), "");
+    Question questionObj(id, question, questionDetail, "2017-12-09", StringUtil::toString(userId), "", "0");
     dataBase.insertQuestion(questionObj, jieba, stopWord);
 
     
@@ -126,7 +126,8 @@ Question testInsertQuestion(DataBase& dataBase,
         questionList.emplace_back(Question(StringUtil::toInt(questionInfo["questionId"]),
                             questionInfo["question"], questionInfo["questionDetail"],
                             questionInfo["date"],     questionInfo["userId"],
-                            questionInfo["answerIds"]));
+                            questionInfo["answerIds"],
+                            questionInfo["adopted"]));
     }
 
     for(auto &questionObj : questionList)
@@ -137,6 +138,7 @@ Question testInsertQuestion(DataBase& dataBase,
         cout << "date : " << questionObj.date() << endl;
         cout << "userId : " << questionObj.userId() << endl;
         cout << "answerIds : " << questionObj.answerIds() << endl;
+        cout << "adopted : " << questionObj.adopted() << endl;
     }
 
     return questionObj;
@@ -158,6 +160,7 @@ void testInsertAnswer(DataBase& dataBase, const string& answer, int userId, int 
     cout << "date : " << questionInfo["date"] << endl;
     cout << "userId : " << questionInfo["userId"] << endl;
     cout << "answerIds : " << questionInfo["answerIds"] << endl;
+    cout << "adopted : " << questionInfo["adopted"] << endl;
 
     int id = dataBase.nextAnswerId(1);
     Answer answerObj(id, answer, "2017-12-11", StringUtil::toString(userId), "");
@@ -174,7 +177,8 @@ void testInsertAnswer(DataBase& dataBase, const string& answer, int userId, int 
                                      questionInfo["questionDetail"], 
                                      questionInfo["date"],
                                      questionInfo["userId"], 
-                                     answerIds));
+                                     answerIds,
+                                     questionInfo["adopted"]));
     
     questionInfo = dataBase.queryFromTable("question", queryMap);
     if(questionInfo.empty())
@@ -208,6 +212,24 @@ void testInsertAnswer(DataBase& dataBase, const string& answer, int userId, int 
     cout << "commentIds : " << answerInfo["commentIds"] << endl;
 }
 
+void testQueryNoAdoptedQuestion(DataBase& dataBase)
+{
+    unordered_map<string, string> queryMap;
+    queryMap.insert(std::make_pair("adopted", "0"));
+    DataBase::TableInfoMapList questionInfoList = 
+        dataBase.queryAllFromTable("question", queryMap);
+
+    for(auto &questionInfo : questionInfoList)
+    {
+        cout << "questionId : " << questionInfo["questionId"] << endl;
+        cout << "question   : " << questionInfo["question"] << endl;
+        cout << "questionDetail : " << questionInfo["questionDetail"] << endl;
+        cout << "date : " << questionInfo["date"] << endl;
+        cout << "userId : " << questionInfo["userId"] << endl;
+        cout << "answerIds : " << questionInfo["answerIds"] << endl;
+        cout << "adopted : " << questionInfo["adopted"] << endl;
+    }
+}
 int main()
 {
     DataBase dataBase("root", "3764819","app", 3306);
@@ -240,5 +262,8 @@ int main()
     testInsertAnswer(dataBase, 
                      "answerbalabalabala" + StringUtil::toString(userId) , 
                      userId, questionObj.questionId());
+
+    cout << endl;
+    testQueryNoAdoptedQuestion(dataBase);
     return 0;
 }

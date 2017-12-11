@@ -29,10 +29,12 @@ private:
     void handleErrorMethod(const TcpConnectionPtr& conn);
     
     std::vector<Question> queryQuestion(const std::string& keyWords);
+    std::vector<Question> queryNoAdoptedQuestion();
     std::vector<Answer> queryAnswer(const std::string& questionId);
     std::vector<Comment> queryComment(const std::string& commentId);
-    User queryUser(const std::string& userId);
-
+    std::vector<User> queryUser(const std::string& userId);
+    std::vector<User> queryFans(const std::string& fansIds);
+    std::vector<User> searchUser(const std::string& nickname);
     bool insertQuestion(const std::string& question, const std::string& questionDetail, int userId);
     bool insertAnswer(int questionId, const std::string& answer, int userId);
     bool insertComment(int answerId, const std::string& comment, int userId);

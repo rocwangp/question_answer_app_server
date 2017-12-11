@@ -18,6 +18,7 @@ class DataBase : noncopyable
 public:
     typedef std::unordered_map<std::string, int> StopWordMap;
     typedef std::unordered_map<std::string, std::string> TableInfoMap;
+    typedef std::vector<TableInfoMap> TableInfoMapList;
     typedef std::vector<std::string> InsertInfoList;
     typedef std::vector<Answer> AnswerList;
     typedef std::vector<std::vector<std::string>> TableContentList;
@@ -31,6 +32,8 @@ public:
 
     TableInfoMap queryFromTable(const std::string& table,
                                 const TableInfoMap& queryMap);
+    TableInfoMapList queryAllFromTable(const std::string& table,
+                                       const TableInfoMap& queryMap);
     bool insertIntoTable(const std::string& table, 
                          const InsertInfoList& values);
     bool deleteFromTable(const std::string& table,

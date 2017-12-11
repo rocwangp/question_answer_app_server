@@ -1,5 +1,7 @@
 #include "StringUtil.h"
+#include "../Logging.h"
 
+#include <regex>
 #include <sstream>
 #include <string.h>
 
@@ -29,6 +31,19 @@ vector<string> split(const char* s, const char& key)
     return split(toString(s), key);
 }
 
+string filterChar(const string& s, const string& key, const string& value)
+{
+    std::regex re(key);
+    string res = std::regex_replace(s, re, value);
+    LOG_INFO << s << " " << res;
+    return res;
+}
+
+string revertChar(const string& s, const string& key, const string& value)
+{
+    std::regex re(key);
+    return std::regex_replace(s, re, value); 
+}
 int toInt(const string& s)
 {
     std::stringstream oss(s);

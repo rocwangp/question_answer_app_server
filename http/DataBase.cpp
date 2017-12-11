@@ -101,12 +101,49 @@ DataBase::queryFromTable(const string& table, const TableInfoMap& queryMap)
         {
             field = ::mysql_fetch_field_direct(result, i);
             /* 查询结果存在map中 */
-            queryInfo[field->name] = StringUtil::toString(row[i]); 
-            LOG_INFO << queryInfo[field->name];
+            queryInfo[field->name] = StringUtil::revertChar(StringUtil::toString(row[i]), "\"", "\'"); 
         }
         row = ::mysql_fetch_row(result);
     }
     return queryInfo;
+}
+
+DataBase::TableInfoMapList
+DataBase::queryAllFromTable(const string& table, const TableInfoMap& queryMap)
+{
+    TableInfoMapList queryInfoList;
+
+    string sql = "select * from " + table + " where ";
+    for(auto it = queryMap.begin(); it != queryMap.end();)
+    {
+        sql += it->first + "=" + "'" + it->second + "'";
+        if(++it != queryMap.end()) { sql += " and "; }
+    }
+    LOG_DEBUG << "sql is " << sql;
+
+    ::mysql_query(&conn_, sql.c_str());
+    MYSQL_RES *result = ::mysql_store_result(&conn_);
+    /* 查询出错 */
+    if(!result) { return queryInfoList; }
+    
+    int fields = ::mysql_num_fields(result);
+    MYSQL_FIELD *field = nullptr;
+    MYSQL_ROW row = ::mysql_fetch_row(result);
+    LOG_INFO << "start search";
+    while(row != nullptr)
+    {
+        TableInfoMap queryInfo;
+        for(int i = 0; i < fields; ++i)
+        {
+            field = ::mysql_fetch_field_direct(result, i);
+            /* 查询结果存在map中 */
+            queryInfo[field->name] = StringUtil::revertChar(StringUtil::toString(row[i]), "\"", "\'"); 
+            LOG_INFO << queryInfo[field->name];
+        }
+        queryInfoList.emplace_back(queryInfo);
+        row = ::mysql_fetch_row(result);
+    }
+    return queryInfoList;
 }
 
 bool DataBase::insertIntoTable(const string& table, const InsertInfoList& values)
@@ -215,7 +252,7 @@ Question DataBase::parseQuestion(ifstream& fin)
     }
     question = std::regex_replace(question, re, fmt);
     questionDetail = std::regex_replace(questionDetail, re, fmt);
-    Question questionObj(0, question, questionDetail, "2017-11-10-00:00", "0", "");
+    Question questionObj(0, question, questionDetail, "2017-11-10-00:00", "0", "", "1");
     return questionObj;
 }
 
@@ -301,10 +338,11 @@ bool DataBase::insertAnswer(const Answer& answer)
 {
     string insertSql = "insert into answer values(";
     insertSql += "'" + StringUtil::toString(answer.answerId()) + "'" + ","
-              +  "'" + answer.answer()          + "'" + ","
+              +  "'" + StringUtil::filterChar(answer.answer(), "\'", "\"") + "'" + ","
               +  "'" + answer.date()            + "'" + ","
               +  "'" + answer.userId()          + "'" + "," 
               +  "'" + answer.commentIdStr()    + "'" + ")";
+    LOG_INFO << "sql is " + insertSql;
     ::mysql_query(&conn_, insertSql.c_str());
     return true;
 }
@@ -330,11 +368,12 @@ bool DataBase::insertQuestion(const Question& questionObj,
 
     string sql = "insert into question values(";
     sql += "'" + StringUtil::toString(questionObj.questionId()) + "'" + ","
-        +  "'" + questionObj.question()         + "'" + ","
-        +  "'" + questionObj.questionDetail()   + "'" + "," 
+        +  "'" + StringUtil::filterChar(questionObj.question(), "\'", "\"") + "'" + ","
+        +  "'" + StringUtil::filterChar(questionObj.questionDetail(), "\'", "\"") + "'" + "," 
         +  "'" + questionObj.date()             + "'" + ","
         +  "'" + questionObj.userId()           + "'" + ","
-        +  "'" + questionObj.answerIds()        + "'" + ")";
+        +  "'" + questionObj.answerIds()        + "'" + ","
+        +  "'" + questionObj.adopted()          + "'" + ")";
     ::mysql_query(&conn_, sql.c_str());
 
     LOG_INFO << sql;
@@ -348,9 +387,9 @@ bool DataBase::insertUser(const User& userObj)
 {
     string sql = "insert into user values(";
     sql += "'" + StringUtil::toString(userObj.userId()) + "'" + ","
-        +  "'" + userObj.username()              + "'" + ","
-        +  "'" + userObj.password()             + "'" + ","
-        +  "'" + userObj.nickname()             + "'" + ","
+        +  "'" + StringUtil::filterChar(userObj.username(), "\'", "\"") + "'" + ","
+        +  "'" + StringUtil::filterChar(userObj.password(), "\'", "\"") + "'" + ","
+        +  "'" + StringUtil::filterChar(userObj.nickname(), "\'", "\"") + "'" + ","
         +  "'" + userObj.articleIds()           + "'" + ","
         +  "'" + userObj.questionCollectedIds()   + "'" + ","
         +  "'" + userObj.questionFollowedIds()      + "'" + ","

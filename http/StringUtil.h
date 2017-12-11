@@ -11,6 +11,8 @@ namespace StringUtil
 vector<string> split(const string& s, const char& key);
 vector<string> split(const char* s, const char& key);
 
+string filterChar(const string& s, const string& key, const string& value);
+string revertChar(const string& s, const string& key, const string& value);
 string toString(int n);
 string toString(double n);
 string toString(size_t n);
