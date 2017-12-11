@@ -94,6 +94,7 @@ DataBase::queryFromTable(const string& table, const TableInfoMap& queryMap)
     int fields = ::mysql_num_fields(result);
     MYSQL_FIELD *field = nullptr;
     MYSQL_ROW row = ::mysql_fetch_row(result);
+    LOG_INFO << "start search";
     if(row != nullptr)
     {
         for(int i = 0; i < fields; ++i)
@@ -101,6 +102,7 @@ DataBase::queryFromTable(const string& table, const TableInfoMap& queryMap)
             field = ::mysql_fetch_field_direct(result, i);
             /* 查询结果存在map中 */
             queryInfo[field->name] = StringUtil::toString(row[i]); 
+            LOG_INFO << queryInfo[field->name];
         }
         row = ::mysql_fetch_row(result);
     }
@@ -346,18 +348,18 @@ bool DataBase::insertUser(const User& userObj)
 {
     string sql = "insert into user values(";
     sql += "'" + StringUtil::toString(userObj.userId()) + "'" + ","
-        +  "'" + userObj.account()              + "'" + ","
+        +  "'" + userObj.username()              + "'" + ","
         +  "'" + userObj.password()             + "'" + ","
-        +  "'" + userObj.username()             + "'" + ","
+        +  "'" + userObj.nickname()             + "'" + ","
         +  "'" + userObj.articleIds()           + "'" + ","
-        +  "'" + userObj.collectQuestionIds()   + "'" + ","
-        +  "'" + userObj.careQuestionIds()      + "'" + ","
-        +  "'" + userObj.careUserIds()          + "'" + ","
+        +  "'" + userObj.questionCollectedIds()   + "'" + ","
+        +  "'" + userObj.questionFollowedIds()      + "'" + ","
+        +  "'" + userObj.userFollowedIds()          + "'" + ","
         +  "'" + userObj.fansIds()              + "'" + ","
-        +  "'" + userObj.publishQuestionIds()   + "'" + ","
-        +  "'" + userObj.publishAnswerIds()     + "'" + ","
-        +  "'" + userObj.publishCommentIds()    + "'" + ","
-        +  "'" + userObj.likeAnswerIds()        + "'" + ")";
+        +  "'" + userObj.questionPublishedIds()   + "'" + ","
+        +  "'" + userObj.answerPublishedIds()     + "'" + ","
+        +  "'" + userObj.commentPublishedIds()    + "'" + ","
+        +  "'" + userObj.answerUpvotedIds()        + "'" + ")";
     ::mysql_query(&conn_, sql.c_str());
     
     LOG_INFO << sql;

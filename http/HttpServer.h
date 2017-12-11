@@ -30,7 +30,8 @@ private:
     
     std::vector<Question> queryQuestion(const std::string& keyWords);
     std::vector<Answer> queryAnswer(const std::string& questionId);
-    std::vector<Comment> queryComment(const std::string& id);
+    std::vector<Comment> queryComment(const std::string& commentId);
+    User queryUser(const std::string& userId);
 
     bool insertQuestion(const std::string& question, const std::string& questionDetail, int userId);
     bool insertAnswer(int questionId, const std::string& answer, int userId);

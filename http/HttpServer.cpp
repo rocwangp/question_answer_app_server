@@ -95,7 +95,7 @@ bool HttpServer::isStopWord(const string& word)
     return stopWord_.find(word) != stopWord_.end();
 }
 
-/* FIXME: 改成滚动日志 */
+/* TODO: 改成滚动日志 */
 void HttpServer::loggerOutputFunc(const string& msg)
 {
     FILE* file = nullptr;
@@ -301,6 +301,14 @@ vector<Comment> HttpServer::queryComment(const string& commentIds)
     return commentList;
 }
 
+User HttpServer::queryUser(const string& userId)
+{
+    unordered_map<string, string> queryMap;
+    queryMap.insert(std::make_pair("userId", userId));
+    DataBase::TableInfoMap userInfo = 
+        dataBase_->queryFromTable(USER_TABLE_NAME, queryMap);
+    return User();
+}
 string HttpServer::currentTime()
 {
     time_t curTime = time(nullptr); 
@@ -360,12 +368,16 @@ bool HttpServer::insertUser(const string& username, const string& password, cons
     return true;
 }
 
+/* 
+ * true : 该用户没有注册过，用户名可用 
+ * false: 不可用
+ */
 bool HttpServer::checkUser(const string& username)
 {
     unordered_map<string, string> queryMap;
     queryMap.insert(std::make_pair("username", username));
     DataBase::TableInfoMap userInfo = dataBase_->queryFromTable(USER_TABLE_NAME, queryMap);
-    if(!userInfo.empty())
+    if(userInfo.empty())
         return true;
     else
         return false;
@@ -413,6 +425,8 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
     }
     else if(httpRequest_->isQueryUser())
     {
+        User userObj = queryUser(argumentsMap["userId"]);
+        queryList.emplace_back(userObj.toMap());
         httpResponse_->setCode(200);
     }
     /* 发布问题 */
@@ -431,16 +445,28 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
     /* 回答问题 */
     else if(httpRequest_->isInsertAnswer())
     {
-        insertAnswer(StringUtil::toInt(argumentsMap["questionId"]), 
+        DataInfoMap insertRes;
+        if(insertAnswer(StringUtil::toInt(argumentsMap["questionId"]), 
                      argumentsMap["answer"],
-                     StringUtil::toInt(argumentsMap["userId"]));
+                     StringUtil::toInt(argumentsMap["userId"])))
+            insertRes.insert(std::make_pair("result", "success"));
+        else
+            insertRes.insert(std::make_pair("result", "failure"));
+        queryList.emplace_back(insertRes);
+        httpResponse_->setCode(200);
     }
     /* 添加评论 */
     else if(httpRequest_->isInsertComment())
     {
-        insertComment(StringUtil::toInt(argumentsMap["answerId"]), 
+        DataInfoMap insertRes;
+        if(insertComment(StringUtil::toInt(argumentsMap["answerId"]), 
                       argumentsMap["comment"], 
-                      StringUtil::toInt(argumentsMap["userId"]));
+                      StringUtil::toInt(argumentsMap["userId"])))
+            insertRes.insert(std::make_pair("result", "success"));
+        else
+            insertRes.insert(std::make_pair("result", "failure"));
+        queryList.emplace_back(insertRes);
+        httpResponse_->setCode(200);
     }
     /* 注册账号 */
     else if(httpRequest_->isInsertUser())
@@ -473,7 +499,23 @@ void HttpServer::handlePostMethod(const TcpConnectionPtr& conn)
         if(!loginRes.empty())
             loginRes.insert(std::make_pair("result", "success"));
         else
+        {
             loginRes.insert(std::make_pair("result", "failure"));
+            loginRes.insert(std::make_pair("userId", ""));
+            loginRes.insert(std::make_pair("username", ""));
+            loginRes.insert(std::make_pair("password", ""));
+            loginRes.insert(std::make_pair("nickname", ""));
+            loginRes.insert(std::make_pair("articleIds", ""));
+            loginRes.insert(std::make_pair("questionCollectedIds", ""));
+            loginRes.insert(std::make_pair("questionFollowedIds", ""));
+            loginRes.insert(std::make_pair("userFollowedIds", ""));
+            loginRes.insert(std::make_pair("fansIds", ""));
+            loginRes.insert(std::make_pair("questionPublishedIds", ""));
+            loginRes.insert(std::make_pair("answerPublishedIds", ""));
+            loginRes.insert(std::make_pair("commentPublishedIds", ""));
+            loginRes.insert(std::make_pair("answerUpvotedIds", ""));
+
+        }
         queryList.emplace_back(loginRes);
         httpResponse_->setCode(200);
     }
