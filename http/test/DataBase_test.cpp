@@ -230,6 +230,8 @@ void testQueryNoAdoptedQuestion(DataBase& dataBase)
         cout << "adopted : " << questionInfo["adopted"] << endl;
     }
 }
+
+
 int main()
 {
     DataBase dataBase("root", "3764819","app", 3306);

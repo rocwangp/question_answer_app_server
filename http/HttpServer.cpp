@@ -61,6 +61,8 @@ HttpServer::HttpServer(EventLoop* loop, const InetAddress& localaddr)
     setUpdateTask(); 
 
     initStopWordMap();
+
+    updateDataBase();
 }
 
 HttpServer::~HttpServer()
