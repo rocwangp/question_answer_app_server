@@ -53,7 +53,6 @@ private:
     void loggerOutputFunc(const std::string& msg);
 
     bool isStopWord(const string& word);
-    static string currentTime();
 
 private:
     struct ComByValue

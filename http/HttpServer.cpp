@@ -2,7 +2,7 @@
 #include "HttpRequest.h"
 #include "HttpResponse.h"
 #include "DataBase.h"
-#include "StringUtil.h"
+#include "../StringUtil.h"
 #include "../Logging.h"
 
 #include <fstream>
@@ -62,7 +62,7 @@ HttpServer::HttpServer(EventLoop* loop, const InetAddress& localaddr)
 
     initStopWordMap();
 
-    updateDataBase();
+    /* updateDataBase(); */
 }
 
 HttpServer::~HttpServer()
@@ -374,22 +374,12 @@ vector<User> HttpServer::searchUser(const string& nickname)
 
     return userList;
 }
-string HttpServer::currentTime()
-{
-    time_t curTime = time(nullptr); 
-    struct tm curtm = *localtime(&curTime);
-    string date = StringUtil::toString(curtm.tm_year + 1900) + "-"
-                + StringUtil::toString(curtm.tm_mon) + "-"
-                + StringUtil::toString(curtm.tm_mday) + ":"
-                + StringUtil::toString(curtm.tm_hour) + "::"
-                + StringUtil::toString(curtm.tm_min);
-    return date;
-}
+
 bool HttpServer::insertQuestion(const string& question, const string& questionDetail, int userId)
 {
     int id = dataBase_->nextQuestionId(1);
     Question questionObj(id, question, questionDetail, 
-                         HttpServer::currentTime(), 
+                         Timestamp::currentTime(), 
                          StringUtil::toString(userId), "", "0");
     dataBase_->insertQuestion(questionObj, jieba_, stopWord_);
     return true;
@@ -406,7 +396,7 @@ bool HttpServer::insertAnswer(int questionId, const string& answer, int userId)
 
     
     int answerId = dataBase_->nextAnswerId(1);
-    Answer answerObj(answerId, answer, HttpServer::currentTime(), StringUtil::toString(userId), "");
+    Answer answerObj(answerId, answer, Timestamp::currentTime(), StringUtil::toString(userId), "");
     dataBase_->insertAnswer(answerObj);
     
     string answerIds = questionInfo["answerIds"];

@@ -1,6 +1,6 @@
 #include "HttpRequest.h"
-#include "StringUtil.h"
 
+#include "../StringUtil.h"
 #include "../ErrorGuard.h"
 #include "../Logging.h"
 #include "../rapidjson/document.h"

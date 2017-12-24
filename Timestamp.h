@@ -1,6 +1,9 @@
 #pragma once
 
+#include "StringUtil.h"
+
 #include <cstdint>
+#include <string>
 
 class Timestamp
 {
@@ -21,6 +24,18 @@ public:
         : microSecondsSinceEpoch_(timestamp.microSecondsSinceEpoch_)
     {
 
+    }
+
+    static std::string currentTime()
+    {
+        time_t curTime = time(nullptr); 
+        struct tm curtm = *localtime(&curTime);
+        std::string date = StringUtil::toString(curtm.tm_year + 1900) + "-"
+                    + StringUtil::toString(curtm.tm_mon) + "-"
+                    + StringUtil::toString(curtm.tm_mday) + ":"
+                    + StringUtil::toString(curtm.tm_hour) + "::"
+                    + StringUtil::toString(curtm.tm_min);
+        return date;
     }
 
     int64_t microSecondsSinceEpoch() const { return microSecondsSinceEpoch_; }

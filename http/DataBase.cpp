@@ -1,17 +1,17 @@
 #include "DataBase.h"
-#include "StringUtil.h"
+#include "ResultGuard.h"
+#include "../StringUtil.h"
 #include "../Logging.h"
+#include "../Timestamp.h"
+#include "../MutexLockGuard.h"
 
 #include <fstream>
-#include <regex>
 
 using std::ifstream;
 using std::ofstream;
 using std::string;
 using std::vector;
 using std::unordered_map;
-using std::regex;
-
 
 DataBase::DataBase(const string& username,
                    const string& password,
@@ -20,7 +20,11 @@ DataBase::DataBase(const string& username,
     : questionNum_(0),
       answerNum_(0),
       commentNum_(0),
-      userNum_(0)
+      userNum_(0),
+      username_(username),
+      password_(password),
+      database_(database),
+      port_(port)
 {
 
     initMySql(username, password, database, port);
@@ -54,6 +58,8 @@ void DataBase::initMySql(const string& username,
        LOG_INFO << "connect database " << database 
                 << " with username: " << username
                 << " password: " << password << " success";
+       char value = 1;
+       ::mysql_options(&conn_, MYSQL_OPT_RECONNECT, static_cast<char*>(&value));
        ::mysql_set_character_set(&conn_, "utf8");
     }
 }
@@ -62,9 +68,7 @@ void DataBase::initDataNum()
 {
     questionNum_ = getTableLineNum("question", "questionId");
     answerNum_ = getTableLineNum("answer", "answerId");
-    /* commentNum_ = getTableLineNum("comment", "commentId"); */
     userNum_ = getTableLineNum("user", "userId");
-    LOG_INFO << questionNum_ << " " << answerNum_ << " " << commentNum_ << " " << userNum_;
 }
 
 void DataBase::initMutex()
@@ -73,9 +77,19 @@ void DataBase::initMutex()
 }
 
 
+void DataBase::reconnect()
+{
+    if(::mysql_ping(&conn_))
+    {
+        /* ::mysql_close(&conn_); */
+        ::mysql_real_connect(&conn_, "localhost", username_.c_str(), password_.c_str(),
+                              database_.c_str(), port_, NULL, 0);
+    }
+}
 DataBase::TableInfoMap
 DataBase::queryFromTable(const string& table, const TableInfoMap& queryMap)
 {
+    MutexLockGuard mutexGuard(mutex_);
     TableInfoMap queryInfo;
 
     string sql = "select * from " + table + " where ";
@@ -88,8 +102,10 @@ DataBase::queryFromTable(const string& table, const TableInfoMap& queryMap)
 
     ::mysql_query(&conn_, sql.c_str());
     MYSQL_RES *result = ::mysql_store_result(&conn_);
+
+    ResultGuard resultGuard(result);
     /* 查询出错 */
-    if(!result) { return queryInfo; }
+    if(!result) {  LOG_ERROR << ::mysql_error(&conn_);  return queryInfo; } //return queryInfo; }
     
     int fields = ::mysql_num_fields(result);
     MYSQL_FIELD *field = nullptr;
@@ -100,8 +116,7 @@ DataBase::queryFromTable(const string& table, const TableInfoMap& queryMap)
         for(int i = 0; i < fields; ++i)
         {
             field = ::mysql_fetch_field_direct(result, i);
-            /* 查询结果存在map中 */
-            queryInfo[field->name] = StringUtil::revertChar(StringUtil::toString(row[i]), "\"", "\'"); 
+            queryInfo[field->name] = StringUtil::replaceChar(StringUtil::toString(row[i]), "\"", "\'"); 
         }
         row = ::mysql_fetch_row(result);
     }
@@ -123,8 +138,10 @@ DataBase::queryAllFromTable(const string& table, const TableInfoMap& queryMap)
 
     ::mysql_query(&conn_, sql.c_str());
     MYSQL_RES *result = ::mysql_store_result(&conn_);
+
+    ResultGuard resultGuard(result);
     /* 查询出错 */
-    if(!result) { return queryInfoList; }
+    if(!result) {  return queryInfoList; }
     
     int fields = ::mysql_num_fields(result);
     MYSQL_FIELD *field = nullptr;
@@ -136,9 +153,7 @@ DataBase::queryAllFromTable(const string& table, const TableInfoMap& queryMap)
         for(int i = 0; i < fields; ++i)
         {
             field = ::mysql_fetch_field_direct(result, i);
-            /* 查询结果存在map中 */
-            queryInfo[field->name] = StringUtil::revertChar(StringUtil::toString(row[i]), "\"", "\'"); 
-            LOG_INFO << queryInfo[field->name];
+            queryInfo[field->name] = StringUtil::replaceChar(StringUtil::toString(row[i]), "\"", "\'"); 
         }
         queryInfoList.emplace_back(queryInfo);
         row = ::mysql_fetch_row(result);
@@ -191,37 +206,25 @@ int DataBase::getTableLineNum(const string& table, const string& columnName)
     string sql = "select * from " + table;
     ::mysql_query(&conn_, sql.c_str());
     MYSQL_RES *result = ::mysql_store_result(&conn_);
-    int lineNum = -1;
-    if(result)
-    {
-        lineNum = ::mysql_num_rows(result);
-    }
-    ::mysql_free_result(result);
-    if(lineNum <= 0)
-        return 1;
+    ResultGuard resultGuard1(result);
+
+    int lineNum = result ? ::mysql_num_rows(result) : 0;
 
     sql = "select max(" + columnName + ") from " + table;
     ::mysql_query(&conn_, sql.c_str());
     result = ::mysql_store_result(&conn_);
-    LOG_INFO << sql;
+    ResultGuard resultGuard2(result);
+
     if(result)
     {
         MYSQL_ROW row = ::mysql_fetch_row(result);
-        if(row)
-        {
-            lineNum = StringUtil::toInt(row[0]);
-        }
+        lineNum = row ? StringUtil::toInt(row[0]) : lineNum;
     }
-    ::mysql_free_result(result);
     return lineNum + 1;
 }
 
 Question DataBase::parseQuestion(ifstream& fin)
 {
-    string pattern("'");
-    regex re(pattern);
-    string fmt("\"");
-
     string question("");
     string line("");
     while(!fin.eof())
@@ -250,18 +253,14 @@ Question DataBase::parseQuestion(ifstream& fin)
             questionDetail += line + "\n";
         }
     }
-    question = std::regex_replace(question, re, fmt);
-    questionDetail = std::regex_replace(questionDetail, re, fmt);
-    Question questionObj(0, question, questionDetail, "2017-11-10-00:00", "0", "", "1");
+    question = StringUtil::replaceChar(question, "\'", "\"");
+    questionDetail = StringUtil::replaceChar(questionDetail, "\'", "\"");
+    Question questionObj(0, question, questionDetail, Timestamp::currentTime(), "0", "", "1");
     return questionObj;
 }
 
 DataBase::AnswerList DataBase::parseAnswers(ifstream &fin)
 {
-
-    string pattern("'");
-    regex re(pattern);
-    string fmt("\"");
 
     vector<Answer> answerList;
     string answer("");
@@ -276,9 +275,9 @@ DataBase::AnswerList DataBase::parseAnswers(ifstream &fin)
         }
         else if(line == "\r")
         {
-            answer = std::regex_replace(answer.substr(0, answer.size() - 1), re, fmt);
+            answer = StringUtil::replaceChar(answer.substr(0, answer.size() - 1), "\'", "\"");
             if(!answer.empty())
-                answerList.emplace_back(Answer(0, answer, "2017-11-10:00:00", "0", ""));
+                answerList.emplace_back(Answer(0, answer, Timestamp::currentTime(), "0", ""));
             answer = "";
         }
         else
@@ -296,6 +295,7 @@ void DataBase::insertWord(int questionId, const string& word)
     string findSql = "select * from word where word='" + word + "'";
     ::mysql_query(&conn_, findSql.c_str());
     MYSQL_RES *result = mysql_store_result(&conn_);
+    ResultGuard resultGuard(result);
     if(result)
     {
         string questionIdStr("");
@@ -330,7 +330,6 @@ void DataBase::insertWord(int questionId, const string& word)
                       +  "'" + StringUtil::toString(questionId) + "'" + ")";
             ::mysql_query(&conn_, insertSql.c_str());
         }
-        ::mysql_free_result(result);
     }
 }
 
@@ -338,7 +337,7 @@ bool DataBase::insertAnswer(const Answer& answer)
 {
     string insertSql = "insert into answer values(";
     insertSql += "'" + StringUtil::toString(answer.answerId()) + "'" + ","
-              +  "'" + StringUtil::filterChar(answer.answer(), "\'", "\"") + "'" + ","
+              +  "'" + StringUtil::replaceChar(answer.answer(), "\'", "\"") + "'" + ","
               +  "'" + answer.date()            + "'" + ","
               +  "'" + answer.userId()          + "'" + "," 
               +  "'" + answer.commentIdStr()    + "'" + ")";
@@ -368,8 +367,8 @@ bool DataBase::insertQuestion(const Question& questionObj,
 
     string sql = "insert into question values(";
     sql += "'" + StringUtil::toString(questionObj.questionId()) + "'" + ","
-        +  "'" + StringUtil::filterChar(questionObj.question(), "\'", "\"") + "'" + ","
-        +  "'" + StringUtil::filterChar(questionObj.questionDetail(), "\'", "\"") + "'" + "," 
+        +  "'" + StringUtil::replaceChar(questionObj.question(), "\'", "\"") + "'" + ","
+        +  "'" + StringUtil::replaceChar(questionObj.questionDetail(), "\'", "\"") + "'" + "," 
         +  "'" + questionObj.date()             + "'" + ","
         +  "'" + questionObj.userId()           + "'" + ","
         +  "'" + questionObj.answerIds()        + "'" + ","
@@ -387,9 +386,9 @@ bool DataBase::insertUser(const User& userObj)
 {
     string sql = "insert into user values(";
     sql += "'" + StringUtil::toString(userObj.userId()) + "'" + ","
-        +  "'" + StringUtil::filterChar(userObj.username(), "\'", "\"") + "'" + ","
-        +  "'" + StringUtil::filterChar(userObj.password(), "\'", "\"") + "'" + ","
-        +  "'" + StringUtil::filterChar(userObj.nickname(), "\'", "\"") + "'" + ","
+        +  "'" + StringUtil::replaceChar(userObj.username(), "\'", "\"") + "'" + ","
+        +  "'" + StringUtil::replaceChar(userObj.password(), "\'", "\"") + "'" + ","
+        +  "'" + StringUtil::replaceChar(userObj.nickname(), "\'", "\"") + "'" + ","
         +  "'" + userObj.articleIds()           + "'" + ","
         +  "'" + userObj.questionCollectedIds()   + "'" + ","
         +  "'" + userObj.questionFollowedIds()      + "'" + ","
@@ -412,26 +411,9 @@ bool DataBase::updateQuestion(const Question& questionObj)
                + StringUtil::toString(questionObj.questionId()) + "'";
     ::mysql_query(&conn_, sql.c_str());
     MYSQL_RES *result = ::mysql_store_result(&conn_);
+    ResultGuard resultGuard(result);
     if(result)
     {
-        /* MYSQL_ROW row = mysql_fetch_row(result); */
-        /* int fieldNum = mysql_num_fields(result); */
-        /* string answerIdStr(""); */
-        /* for(int i = 0; i < fieldNum; ++i) */
-        /* { */
-        /*     MYSQL_FIELD *field = mysql_fetch_field_direct(result, i); */
-        /*     if(::strncmp(field->name, "answerIds", ::strlen(field->name)) == 0) */
-        /*     { */
-        /*         answerIdStr.assign(row[i], strlen(row[i])); */
-        /*         break; */
-        /*     } */
-        /* } */
-        mysql_free_result(result);
-    
-        /* if(!answerIdStr.empty()) */
-        /*     answerIdStr.append(',', 1); */
-        /* answerIdStr.append(questionObj.answerIds()); */
-
         string updateSql = "update question set ";
         updateSql += "question='" + questionObj.question()             + "'" + ","
                   +  "questionDetail='" + questionObj.questionDetail() + "'" + ","
@@ -455,10 +437,6 @@ bool DataBase::updateDataBase(const string& filename,
                               const StopWordMap& stopWord)
 {
     ifstream fin(filename.c_str(), std::ios_base::in);
-
-    string pattern("'");
-    regex re(pattern);
-    string fmt("\"");
     
     LOG_INFO << "start update database";
     while(!fin.eof())
@@ -470,6 +448,7 @@ bool DataBase::updateDataBase(const string& filename,
         string findQuestionSql = "select * from question where question='" + questionObj.question() + "'";
         ::mysql_query(&conn_, findQuestionSql.c_str());
         MYSQL_RES *result = ::mysql_store_result(&conn_);
+        ResultGuard resultGuard(result);
         if(result)
         {
             /* 如果该问题已存在，直接丢掉，因为主体在用户使用阶段，而不是爬取数据阶段 */
@@ -491,7 +470,6 @@ bool DataBase::updateDataBase(const string& filename,
                 insertAnswerList(answerObjList);
                 insertQuestion(questionObj, jieba, stopWord);
             }
-            ::mysql_free_result(result);
         }
         /* 查询出错 */
         else
@@ -499,7 +477,6 @@ bool DataBase::updateDataBase(const string& filename,
             LOG_ERROR << "sql is incorrent";
             LOG_ERROR << findQuestionSql;
         }
-
     }
     fin.close();
      

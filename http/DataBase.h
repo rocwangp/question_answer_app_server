@@ -75,6 +75,7 @@ private:
     void initDataNum();
     void initMutex();
     
+    void reconnect();
 private:
     MYSQL conn_;
     int questionNum_;
@@ -83,5 +84,10 @@ private:
     int userNum_;
 
     pthread_mutex_t mutex_;
+
+    const string username_;
+    const string password_;
+    const string database_;
+    const int port_;
 };
 
